@@ -82,7 +82,7 @@ impl Message {
                 writer.write_all(&[0x07])?;
                 writer.write_all(&index.to_be_bytes())?;
                 writer.write_all(&offset.to_be_bytes())?;
-                writer.write_all(&data)
+                writer.write_all(data)
             }
         }
     }
