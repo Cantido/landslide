@@ -6,7 +6,11 @@
 name = "landslide"
 version = "0.1.0"
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "A BitTorrent library"
+authors = ["Rosa Richter <cosmic.lady.rosa@gmail.com>"]
+categories = ["network-programming"]
+homepage = "https://sr.ht/~cosmicrose/landslide"
+repository = "https://git.sr.ht/~cosmicrose/landslide"
+license = "MIT AND CC-BY-4.0 AND CC0-1.0"
 
 [dependencies]
