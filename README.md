@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2021 Rosa Richter
+
+SPDX-License-Identifier: MIT
+-->
+
 # Landslide
 
 [![builds.sr.ht status](https://builds.sr.ht/~cosmicrose/landslide.svg)](https://builds.sr.ht/~cosmicrose/landslide)
