@@ -3,6 +3,7 @@
 [![builds.sr.ht status](https://builds.sr.ht/~cosmicrose/landslide.svg)](https://builds.sr.ht/~cosmicrose/landslide)
 [![liberapay goals](https://img.shields.io/liberapay/goal/rosa.svg?logo=liberapay)](https://liberapay.com/rosa)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg)](code_of_conduct.md)
+
 A BitTorrent library for Rust.
 
 ## Contributing
