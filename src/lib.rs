@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2021 Rosa Richter
+//
+// SPDX-License-Identifier: MIT
+
 use std::io::Write;
 
 /// Messages sent over the Peer Wire Protocol (PWP)
