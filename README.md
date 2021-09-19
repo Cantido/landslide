@@ -6,6 +6,10 @@
 
 A BitTorrent library for Rust.
 
+Warning: I'm learning Rust, and this will primarily be a playground.
+However I still want it to be a useful library someday.
+Feel free to try it out and help me learn what people expect when they use Rust crates.
+
 ## Contributing
 
 Questions and pull requests are more than welcome.
