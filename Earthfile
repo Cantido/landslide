@@ -7,7 +7,6 @@ build:
   WORKDIR /app
 
   COPY Cargo.toml .
-  COPY Cargo.lock .
   COPY src ./src
 
   RUN cargo build
