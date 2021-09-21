@@ -63,7 +63,7 @@ pub enum Message {
 impl Message {
     pub fn serialize(&self) -> Vec<u8> {
         match self {
-            Message::KeepAlive => vec![],
+            Message::KeepAlive => vec![0x00, 0x00, 0x00, 0x00],
             Message::Choke => vec![0x00, 0x00, 0x00, 0x01, 0x00],
             Message::Unchoke => vec![0x00, 0x00, 0x00, 0x01, 0x01],
             Message::Interested => vec![0x00, 0x00, 0x00, 0x01, 0x02],
@@ -128,7 +128,11 @@ mod tests {
         let msg = Message::KeepAlive;
         let buf = msg.serialize();
 
-        assert_eq!(buf.len(), 0);
+        assert_eq!(buf.len(), 4);
+        assert_eq!(buf[0], 0x00);
+        assert_eq!(buf[1], 0x00);
+        assert_eq!(buf[2], 0x00);
+        assert_eq!(buf[3], 0x00);
     }
     #[test]
     fn serialize_choke() {
