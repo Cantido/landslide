@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: MIT
 
-use std::io::Write;
-
 /// Messages sent over the Peer Wire Protocol (PWP)
 pub enum Message {
     KeepAlive,
@@ -31,44 +29,46 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn write_to<W: Write>(&self, writer: &mut W) -> Result<(), std::io::Error> {
+    pub fn serialize(&self) -> Vec<u8> {
         match self {
-            Message::KeepAlive => writer.write_all(&[]),
-            Message::Choke => writer.write_all(&[0x00, 0x00, 0x00, 0x01, 0x00]),
-            Message::Unchoke => writer.write_all(&[0x00, 0x00, 0x00, 0x01, 0x01]),
-            Message::Interested => writer.write_all(&[0x00, 0x00, 0x00, 0x01, 0x02]),
-            Message::Uninterested => writer.write_all(&[0x00, 0x00, 0x00, 0x01, 0x03]),
+            Message::KeepAlive => vec![],
+            Message::Choke => vec![0x00, 0x00, 0x00, 0x01, 0x00],
+            Message::Unchoke => vec![0x00, 0x00, 0x00, 0x01, 0x01],
+            Message::Interested => vec![0x00, 0x00, 0x00, 0x01, 0x02],
+            Message::Uninterested => vec![0x00, 0x00, 0x00, 0x01, 0x03],
             Message::Have(x) => {
-                writer.write_all(&[0x00, 0x00, 0x00, 0x05, 0x04])?;
-                writer.write_all(&x.to_be_bytes())
+                let mut buf = vec![0x00, 0x00, 0x00, 0x05, 0x04];
+                buf.extend(&x.to_be_bytes());
+                buf
             }
             Message::Bitfield(b) => {
                 let len = b.len() + 1;
-                let len_bytes = (len as i32).to_be_bytes();
-
-                writer.write_all(&len_bytes)?;
-                writer.write_all(&[0x05])?;
-                writer.write_all(b)
+                let mut buf = (len as i32).to_be_bytes().to_vec();
+                buf.push(0x05);
+                buf.extend(b);
+                buf
             }
             Message::Request {
                 index,
                 offset,
                 length,
             } => {
-                writer.write_all(&[0x00, 0x00, 0x00, 0x0d, 0x06])?;
-                writer.write_all(&index.to_be_bytes())?;
-                writer.write_all(&offset.to_be_bytes())?;
-                writer.write_all(&length.to_be_bytes())
+                let mut buf: Vec<u8> = vec![0x00, 0x00, 0x00, 0x0d, 0x06];
+                buf.extend(index.to_be_bytes().to_vec());
+                buf.extend(offset.to_be_bytes().to_vec());
+                buf.extend(length.to_be_bytes().to_vec());
+                buf
             }
             Message::Cancel {
                 index,
                 offset,
                 length,
             } => {
-                writer.write_all(&[0x00, 0x00, 0x00, 0x0d, 0x08])?;
-                writer.write_all(&index.to_be_bytes())?;
-                writer.write_all(&offset.to_be_bytes())?;
-                writer.write_all(&length.to_be_bytes())
+                let mut buf = vec![0x00, 0x00, 0x00, 0x0d, 0x08];
+                buf.extend(index.to_be_bytes());
+                buf.extend(offset.to_be_bytes());
+                buf.extend(length.to_be_bytes());
+                buf
             }
             Message::Block {
                 index,
@@ -76,13 +76,12 @@ impl Message {
                 data,
             } => {
                 let len = data.len() + 9;
-                let len_bytes = (len as i32).to_be_bytes();
-
-                writer.write_all(&len_bytes)?;
-                writer.write_all(&[0x07])?;
-                writer.write_all(&index.to_be_bytes())?;
-                writer.write_all(&offset.to_be_bytes())?;
-                writer.write_all(data)
+                let mut buf = (len as i32).to_be_bytes().to_vec();
+                buf.push(0x07);
+                buf.extend(&index.to_be_bytes());
+                buf.extend(&offset.to_be_bytes());
+                buf.extend(data);
+                buf
             }
         }
     }
@@ -94,20 +93,16 @@ mod tests {
 
     #[test]
     fn serialize_keepalive() {
-        let mut buf = Vec::new();
         let msg = Message::KeepAlive;
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 0);
     }
     #[test]
     fn serialize_choke() {
-        let mut buf = Vec::new();
         let msg = Message::Choke;
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 5);
         assert_eq!(buf[0], 0x00);
         assert_eq!(buf[1], 0x00);
@@ -118,11 +113,9 @@ mod tests {
 
     #[test]
     fn serialize_unchoke() {
-        let mut buf = Vec::new();
         let msg = Message::Unchoke;
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 5);
         assert_eq!(buf[0], 0x00);
         assert_eq!(buf[1], 0x00);
@@ -133,11 +126,9 @@ mod tests {
 
     #[test]
     fn serialize_interested() {
-        let mut buf = Vec::new();
         let msg = Message::Interested;
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 5);
         assert_eq!(buf[0], 0x00);
         assert_eq!(buf[1], 0x00);
@@ -148,11 +139,9 @@ mod tests {
 
     #[test]
     fn serialize_uninterested() {
-        let mut buf = Vec::new();
         let msg = Message::Uninterested;
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 5);
         assert_eq!(buf[0], 0x00);
         assert_eq!(buf[1], 0x00);
@@ -163,11 +152,9 @@ mod tests {
 
     #[test]
     fn serialize_have() {
-        let mut buf = Vec::new();
         let msg = Message::Have(23);
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 9);
         assert_eq!(buf[0], 0x00);
         assert_eq!(buf[1], 0x00);
@@ -184,11 +171,9 @@ mod tests {
 
     #[test]
     fn serialize_bitfield() {
-        let mut buf = Vec::new();
         let msg = Message::Bitfield(vec![0xFF, 0xFF, 0xFF]);
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 8);
         assert_eq!(buf[0], 0x00);
         assert_eq!(buf[1], 0x00);
@@ -204,15 +189,13 @@ mod tests {
 
     #[test]
     fn serialize_request() {
-        let mut buf = Vec::new();
         let msg = Message::Request {
             index: 666,
             offset: 420,
             length: 16384,
         };
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 17);
         assert_eq!(buf[0], 0x00);
         assert_eq!(buf[1], 0x00);
@@ -239,15 +222,13 @@ mod tests {
 
     #[test]
     fn serialize_cancel() {
-        let mut buf = Vec::new();
         let msg = Message::Cancel {
             index: 666,
             offset: 420,
             length: 16384,
         };
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 17);
         assert_eq!(buf[0], 0x00);
         assert_eq!(buf[1], 0x00);
@@ -274,15 +255,13 @@ mod tests {
 
     #[test]
     fn serialize_block() {
-        let mut buf = Vec::new();
         let msg = Message::Block {
             index: 666,
             offset: 420,
             data: vec![4, 8, 15, 16, 23, 42],
         };
-        let res = msg.write_to(&mut buf);
+        let buf = msg.serialize();
 
-        assert!(res.is_ok());
         assert_eq!(buf.len(), 19);
         assert_eq!(buf[0], 0x00);
         assert_eq!(buf[1], 0x00);
