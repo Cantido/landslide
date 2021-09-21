@@ -2,6 +2,38 @@
 //
 // SPDX-License-Identifier: MIT
 
+#[derive(Debug, Default)]
+pub struct Connection {
+    us_choking: ChokeFlag,
+    us_interested: InterestFlag,
+    them_choking: ChokeFlag,
+    them_interested: InterestFlag,
+}
+
+#[derive(Debug)]
+pub enum InterestFlag {
+    Interested,
+    NotInterested
+}
+
+impl Default for InterestFlag {
+    fn default() -> Self {
+        InterestFlag::NotInterested
+    }
+}
+
+#[derive(Debug)]
+pub enum ChokeFlag {
+    Choked,
+    Unchoked,
+}
+
+impl Default for ChokeFlag {
+    fn default() -> Self {
+        ChokeFlag::Choked
+    }
+}
+
 /// Messages sent over the Peer Wire Protocol (PWP)
 pub enum Message {
     KeepAlive,
