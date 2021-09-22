@@ -2,6 +2,10 @@
 //
 // SPDX-License-Identifier: MIT
 
+//! Implementation of the Peer Wire Protocol (PWP).
+
+use bitflags::bitflags;
+
 #[derive(Debug, Default)]
 pub struct Connection {
     us_choking: ChokeFlag,
@@ -34,33 +38,61 @@ impl Default for ChokeFlag {
     }
 }
 
-/// Messages sent over the Peer Wire Protocol (PWP)
+/// The establishing handshake that starts a PWP connection.
+pub struct Handshake {
+    flags: HandshakeFlags,
+    info_hash: crate::InfoHash,
+    peer_id: crate::PeerId,
+}
+
+bitflags! {
+/// The reserved bits of the handshake, used to flag certain extensions.
+    struct HandshakeFlags: u64 {
+        const FAST = 0x0000_0000_0000_0400;
+        const DHT = 0x0000_0000_0000_0001;
+        const EXTENDED = 0x0000_0000_1000_0000;
+    }
+}
+impl Handshake {
+    /// Write this handshake to a writer.
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut buf = vec![19u8];
+        buf.extend(b"BitTorrent Protocol");
+        buf.extend(&self.flags.bits().to_be_bytes());
+        buf.extend(&self.peer_id);
+        buf.extend(&self.info_hash);
+        buf
+    }
+}
+
+/// Messages sent over PWP after the handshake.
 pub enum Message {
     KeepAlive,
     Choke,
     Unchoke,
     Interested,
     Uninterested,
-    Have(u32),
+    Have(crate::PieceIndex),
     Bitfield(Vec<u8>),
     Request {
-        index: u32,
-        offset: u32,
+        index: crate::PieceIndex,
+        offset: crate::BlockOffset,
         length: u32,
     },
     Cancel {
-        index: u32,
-        offset: u32,
+        index: crate::PieceIndex,
+        offset: crate::BlockOffset,
         length: u32,
     },
     Block {
-        index: u32,
-        offset: u32,
+        index: crate::PieceIndex,
+        offset: crate::BlockOffset,
         data: Vec<u8>,
     },
 }
 
 impl Message {
+    /// Serialize this message.
     pub fn serialize(&self) -> Vec<u8> {
         match self {
             Message::KeepAlive => vec![0x00, 0x00, 0x00, 0x00],
@@ -121,7 +153,23 @@ impl Message {
 
 #[cfg(test)]
 mod tests {
+    use crate::pwp::Handshake;
+    use crate::pwp::HandshakeFlags;
     use crate::pwp::Message;
+
+
+    #[test]
+    fn serialize_handshake() {
+        let handshake = Handshake {
+            flags: HandshakeFlags::FAST | HandshakeFlags::DHT,
+            peer_id: *b"Landslide Experiment",
+            info_hash: *b"12345678901234567890",
+        };
+
+        let buf = handshake.serialize();
+
+        assert_eq!(buf.len(), 68);
+    }
 
     #[test]
     fn serialize_keepalive() {
