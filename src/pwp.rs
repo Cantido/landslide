@@ -56,14 +56,13 @@ bitflags! {
     }
 }
 impl Handshake {
-    /// Write this handshake to a writer.
     pub fn serialize(&self) -> Bytes {
         let mut buf = BytesMut::with_capacity(68);
         buf.put_u8(19);
-        buf.put(&b"BitTorrent Protocol"[..]);
+        buf.put_slice(b"BitTorrent Protocol");
         buf.put_u64(self.flags.bits());
-        buf.put(&self.peer_id[..]);
-        buf.put(&self.info_hash[..]);
+        buf.put_slice(&self.peer_id);
+        buf.put_slice(&self.info_hash);
         buf.freeze()
     }
 }
