@@ -5,6 +5,8 @@
 //! Implementation of the Peer Wire Protocol (PWP).
 
 use bitflags::bitflags;
+use bytes::{Bytes, BytesMut, BufMut};
+use std::convert::TryInto;
 
 #[derive(Debug, Default)]
 pub struct Connection {
@@ -55,13 +57,14 @@ bitflags! {
 }
 impl Handshake {
     /// Write this handshake to a writer.
-    pub fn serialize(&self) -> Vec<u8> {
-        let mut buf = vec![19u8];
-        buf.extend(b"BitTorrent Protocol");
-        buf.extend(&self.flags.bits().to_be_bytes());
-        buf.extend(&self.peer_id);
-        buf.extend(&self.info_hash);
-        buf
+    pub fn serialize(&self) -> Bytes {
+        let mut buf = BytesMut::with_capacity(68);
+        buf.put_u8(19);
+        buf.put(&b"BitTorrent Protocol"[..]);
+        buf.put_u64(self.flags.bits());
+        buf.put(&self.peer_id[..]);
+        buf.put(&self.info_hash[..]);
+        buf.freeze()
     }
 }
 
@@ -73,7 +76,7 @@ pub enum Message {
     Interested,
     Uninterested,
     Have(crate::PieceIndex),
-    Bitfield(Vec<u8>),
+    Bitfield(Bytes),
     Request {
         index: crate::PieceIndex,
         offset: crate::BlockOffset,
@@ -87,52 +90,59 @@ pub enum Message {
     Block {
         index: crate::PieceIndex,
         offset: crate::BlockOffset,
-        data: Vec<u8>,
+        data: Bytes,
     },
 }
 
 impl Message {
     /// Serialize this message.
-    pub fn serialize(&self) -> Vec<u8> {
+    pub fn serialize(self) -> Bytes {
         match self {
-            Message::KeepAlive => vec![0x00, 0x00, 0x00, 0x00],
-            Message::Choke => vec![0x00, 0x00, 0x00, 0x01, 0x00],
-            Message::Unchoke => vec![0x00, 0x00, 0x00, 0x01, 0x01],
-            Message::Interested => vec![0x00, 0x00, 0x00, 0x01, 0x02],
-            Message::Uninterested => vec![0x00, 0x00, 0x00, 0x01, 0x03],
-            Message::Have(x) => {
-                let mut buf = vec![0x00, 0x00, 0x00, 0x05, 0x04];
-                buf.extend(&x.to_be_bytes());
-                buf
+            Message::KeepAlive => Bytes::from(vec![0x00, 0x00, 0x00, 0x00]),
+            Message::Choke => Bytes::from(vec![0x00, 0x00, 0x00, 0x01, 0x00]),
+            Message::Unchoke => Bytes::from(vec![0x00, 0x00, 0x00, 0x01, 0x01]),
+            Message::Interested => Bytes::from(vec![0x00, 0x00, 0x00, 0x01, 0x02]),
+            Message::Uninterested => Bytes::from(vec![0x00, 0x00, 0x00, 0x01, 0x03]),
+            Message::Have(index) => {
+                let mut buf = BytesMut::with_capacity(9);
+                buf.put_u32(5);
+                buf.put_u8(0x04);
+                buf.put_u32(index);
+                buf.freeze()
             }
             Message::Bitfield(b) => {
                 let len = b.len() + 1;
-                let mut buf = (len as i32).to_be_bytes().to_vec();
-                buf.push(0x05);
-                buf.extend(b);
-                buf
+                let mut buf = BytesMut::with_capacity(len + 4);
+                buf.put_u32(len.try_into().expect("Bitfield is too big to encode in a bitfield message."));
+                buf.put_u8(0x05);
+                buf.put(b);
+                buf.freeze()
             }
             Message::Request {
                 index,
                 offset,
                 length,
             } => {
-                let mut buf: Vec<u8> = vec![0x00, 0x00, 0x00, 0x0d, 0x06];
-                buf.extend(index.to_be_bytes().to_vec());
-                buf.extend(offset.to_be_bytes().to_vec());
-                buf.extend(length.to_be_bytes().to_vec());
-                buf
+                let mut buf = BytesMut::with_capacity(17);
+                buf.put_u32(13);
+                buf.put_u8(0x06);
+                buf.put_u32(index);
+                buf.put_u32(offset);
+                buf.put_u32(length);
+                buf.freeze()
             }
             Message::Cancel {
                 index,
                 offset,
                 length,
             } => {
-                let mut buf = vec![0x00, 0x00, 0x00, 0x0d, 0x08];
-                buf.extend(index.to_be_bytes());
-                buf.extend(offset.to_be_bytes());
-                buf.extend(length.to_be_bytes());
-                buf
+                let mut buf = BytesMut::with_capacity(17);
+                buf.put_u32(13);
+                buf.put_u8(0x08);
+                buf.put_u32(index);
+                buf.put_u32(offset);
+                buf.put_u32(length);
+                buf.freeze()
             }
             Message::Block {
                 index,
@@ -140,12 +150,13 @@ impl Message {
                 data,
             } => {
                 let len = data.len() + 9;
-                let mut buf = (len as i32).to_be_bytes().to_vec();
-                buf.push(0x07);
-                buf.extend(&index.to_be_bytes());
-                buf.extend(&offset.to_be_bytes());
-                buf.extend(data);
-                buf
+                let mut buf = BytesMut::with_capacity(len + 4);
+                buf.put_u32(len.try_into().expect("Data is too big to fit in a block message."));
+                buf.put_u8(0x07);
+                buf.put_u32(index);
+                buf.put_u32(offset);
+                buf.put(data);
+                buf.freeze()
             }
         }
     }
@@ -156,6 +167,7 @@ mod tests {
     use crate::pwp::Handshake;
     use crate::pwp::HandshakeFlags;
     use crate::pwp::Message;
+    use bytes::Bytes;
 
     #[test]
     fn serialize_handshake() {
@@ -254,7 +266,7 @@ mod tests {
 
     #[test]
     fn serialize_bitfield() {
-        let msg = Message::Bitfield(vec![0xFF, 0xFF, 0xFF]);
+        let msg = Message::Bitfield(Bytes::from(vec![0xFF, 0xFF, 0xFF]));
         let buf = msg.serialize();
 
         assert_eq!(buf.len(), 8);
@@ -341,7 +353,7 @@ mod tests {
         let msg = Message::Block {
             index: 666,
             offset: 420,
-            data: vec![4, 8, 15, 16, 23, 42],
+            data: Bytes::from(vec![4, 8, 15, 16, 23, 42]),
         };
         let buf = msg.serialize();
 
