@@ -17,7 +17,7 @@ pub struct Connection {
 #[derive(Debug)]
 pub enum InterestFlag {
     Interested,
-    NotInterested
+    NotInterested,
 }
 
 impl Default for InterestFlag {
@@ -156,7 +156,6 @@ mod tests {
     use crate::pwp::Handshake;
     use crate::pwp::HandshakeFlags;
     use crate::pwp::Message;
-
 
     #[test]
     fn serialize_handshake() {
